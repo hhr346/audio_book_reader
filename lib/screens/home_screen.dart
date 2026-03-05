@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import '../models/book.dart';
+import '../services/epub_service.dart';
+import '../services/storage_service.dart';
+import 'reader_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('📚 有声书架'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            onPressed: _importBook,
+            tooltip: '导入图书',
+          ),
+        ],
+      ),
+      body: Consumer<StorageService>(
+        builder: (context, storage, child) {
+          final books = storage.getAllBooks();
+          
+          if (books.isEmpty) {
+            return _buildEmptyState();
+          }
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.65,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: books.length,
+            itemBuilder: (context, index) {
+              return _BookCard(
+                book: books[index],
+                onTap: () => _openBook(books[index]),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.library_books_outlined,
+            size: 80,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '书架空空如也',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '点击右上角导入 epub 图书',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _importBook,
+            icon: const Icon(Icons.add),
+            label: const Text('导入第一本书'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importBook() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['epub'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final filePath = result.files.single.path;
+      if (filePath == null) return;
+
+      // 显示加载动画
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // 解析 epub
+      final book = await EpubService().extractBookInfo(filePath);
+      
+      // 保存到存储
+      await StorageService().addBook(book);
+
+      // 关闭加载动画
+      if (mounted) Navigator.pop(context);
+
+      // 显示成功提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ 《${book.title}》已添加到书架'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // 关闭加载动画
+      if (mounted) Navigator.pop(context);
+
+      // 显示错误提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ 导入失败：$e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _openBook(Book book) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReaderScreen(book: book),
+      ),
+    );
+  }
+}
+
+class _BookCard extends StatelessWidget {
+  final Book book;
+  final VoidCallback onTap;
+
+  const _BookCard({required this.book, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 封面
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: Colors.grey.shade300,
+                child: book.coverPath.isNotEmpty && File(book.coverPath).existsSync()
+                    ? Image.file(
+                        File(book.coverPath),
+                        fit: BoxFit.cover,
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.menu_book,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                      ),
+              ),
+            ),
+            // 信息
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    book.author,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (book.currentProgress > 0) ...[
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: book.currentProgress / 100,
+                      backgroundColor: Colors.grey.shade200,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${book.progressText} 已读',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

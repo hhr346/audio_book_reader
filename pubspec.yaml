@@ -1,0 +1,51 @@
+name: audio_book_reader
+description: "有声图书阅读器 - 支持 epub 格式和 TTS 听书功能"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  
+  # epub 解析
+  epub_view: ^3.2.0
+  
+  # 文本转语音
+  flutter_tts: ^4.0.2
+  
+  # 文件选择
+  file_picker: ^6.1.1
+  
+  # 文件管理
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
+  
+  # 状态管理
+  provider: ^6.1.1
+  
+  # 本地存储
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # 音频播放（备用）
+  just_audio: ^0.9.36
+  
+  # 进度条
+  audio_video_progress_bar: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/fonts/
