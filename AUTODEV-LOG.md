@@ -20,6 +20,12 @@
 - 准备认证文档
 - 等待用户提供 Token
 
+### 09:30 - 认证文档
+- 创建 GITHUB-AUTH.md
+- Personal Access Token 方法
+- SSH Key 方法
+- 详细步骤说明
+
 ### 待执行任务
 1. GitHub 推送配置
 2. 真机测试准备
