@@ -61,10 +61,16 @@
 - 移除嵌套 git 仓库
 - 提交并推送
 
+### 16:00 - GitHub 项目清单整理 ✅
+- GITHUB_PROJECTS.md 移动到 OpenClaw_setup
+- 推送到 GitHub
+- 所有项目集中管理
+
 ### 已确认 GitHub 项目
 1. ✅ OpenClaw_setup - 已推送 (SSH)
    - 包含 skills/autodev
-   - 3 次提交
+   - 包含 GITHUB_PROJECTS.md
+   - 4 次提交
 2. ✅ audio_book_reader - 已推送 (SSH)
    - 26+ 次提交
 3. ⏳ photo_klotski - 待推送
