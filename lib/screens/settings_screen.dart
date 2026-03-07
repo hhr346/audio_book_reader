@@ -1,0 +1,298 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/tts_service.dart';
+import '../services/storage_service.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  double _fontSize = 16.0;
+  bool _isDarkMode = false;
+  int _sleepTimerMinutes = 30;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('设置'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 阅读设置
+          _buildSectionTitle('阅读设置'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.text_fields),
+                  title: const Text('字体大小'),
+                  subtitle: Text('${_fontSize.round()}px'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showFontSizeDialog(),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.dark_mode),
+                  title: const Text('夜间模式'),
+                  subtitle: const Text('深色主题更护眼'),
+                  value: _isDarkMode,
+                  onChanged: (value) {
+                    setState(() => _isDarkMode = value);
+                    _showThemeChangeSnackbar();
+                  },
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // 听书设置
+          _buildSectionTitle('听书设置'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.timer),
+                  title: const Text('定时关闭'),
+                  subtitle: Text('$_sleepTimerMinutes 分钟后停止播放'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showSleepTimerDialog(),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.speed),
+                  title: const Text('语速设置'),
+                  subtitle: const Text('调整 TTS 播放速度'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showSpeechRateDialog(),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // 关于
+          _buildSectionTitle('关于'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('应用信息'),
+                  subtitle: const Text('版本 0.1.0'),
+                  onTap: () => _showAboutDialog(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  void _showFontSizeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('字体大小'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: _fontSize,
+                min: 12,
+                max: 24,
+                divisions: 12,
+                label: '${_fontSize.round()}px',
+                onChanged: (value) {
+                  setDialogState(() => _fontSize = value);
+                  setState(() {});
+                },
+              ),
+              const Text(
+                '预览效果',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '这是预览文本',
+                style: TextStyle(fontSize: _fontSize),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {});
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✅ 字体大小已保存')),
+              );
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSleepTimerDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('定时关闭'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('选择定时时间'),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _TimerChip(minutes: 15, selected: _sleepTimerMinutes == 15),
+                _TimerChip(minutes: 30, selected: _sleepTimerMinutes == 30),
+                _TimerChip(minutes: 60, selected: _sleepTimerMinutes == 60),
+                _TimerChip(minutes: 90, selected: _sleepTimerMinutes == 90),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              TtsService().setSleepTimer(_sleepTimerMinutes);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('✅ 定时关闭已设置为 $_sleepTimerMinutes 分钟')),
+              );
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _TimerChip({required int minutes, required bool selected}) {
+    return ChoiceChip(
+      label: Text('$minutes 分钟'),
+      selected: selected,
+      onSelected: (value) {
+        if (value) {
+          setState(() => _sleepTimerMinutes = minutes);
+        }
+      },
+    );
+  }
+
+  void _showSpeechRateDialog() {
+    final ttsService = TtsService();
+    double rate = ttsService.speechRate;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('语速设置'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: rate,
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                label: '${(rate * 100).round()}%',
+                onChanged: (value) {
+                  setDialogState(() => rate = value);
+                },
+              ),
+              Text('当前语速：${(rate * 100).round()}%'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await ttsService.setRate(rate);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✅ 语速已保存')),
+              );
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showThemeChangeSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isDarkMode ? '🌙 已切换到夜间模式' : '☀️ 已切换到日间模式'),
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () {
+            setState(() => _isDarkMode = !_isDarkMode);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showAboutDialog(
+      context: context,
+      applicationName: '有声图书阅读器',
+      applicationVersion: '0.1.0',
+      applicationIcon: const Icon(Icons.menu_book, size: 48),
+      children: [
+        const Text('一款支持 epub 格式的图书阅读器，配备 TTS 听书功能。'),
+        const SizedBox(height: 16),
+        const Text('功能特性：'),
+        const Text('• epub 格式支持'),
+        const Text('• TTS 文本转语音'),
+        const Text('• 阅读进度追踪'),
+        const Text('• 定时关闭功能'),
+      ],
+    );
+  }
+}

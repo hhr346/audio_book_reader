@@ -15,6 +15,47 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  
+  final List<Widget> _screens = [
+    const _BookshelfScreen(),
+    const SettingsScreen(),
+  ];
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.library_books_outlined),
+            selectedIcon: Icon(Icons.library_books),
+            label: '书架',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: '设置',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookshelfScreen extends StatefulWidget {
+  const _BookshelfScreen();
+  
+  @override
+  State<_BookshelfScreen> createState() => _BookshelfScreenState();
+}
+
+class _BookshelfScreenState extends State<_BookshelfScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,6 +192,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+  @override
+  State<_BookshelfScreen> createState() => _BookshelfScreenState();
 }
 
 class _BookCard extends StatelessWidget {

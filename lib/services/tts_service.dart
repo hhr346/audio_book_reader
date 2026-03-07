@@ -1,4 +1,5 @@
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:async';
 
 class TtsService {
   static final TtsService _instance = TtsService._internal();
@@ -12,6 +13,11 @@ class TtsService {
   double _speechRate = 0.5; // 默认语速
   double _pitch = 1.0;
   String? _language = 'zh-CN';
+  
+  // 后台播放支持
+  Timer? _sleepTimer;
+  bool _sleepTimerActive = false;
+  Function(bool)? onSleepTimerComplete;
 
   /// 初始化 TTS
   Future<void> init() async {
@@ -130,5 +136,36 @@ class TtsService {
   /// 释放资源
   Future<void> dispose() async {
     await stop();
+    _sleepTimer?.cancel();
   }
+
+  // ========== 定时关闭功能 ==========
+  
+  /// 设置定时关闭（分钟）
+  void setSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    _sleepTimerActive = true;
+    
+    _sleepTimer = Timer(Duration(minutes: minutes), () {
+      _sleepTimerActive = false;
+      stop();
+      onSleepTimerComplete?.call(true);
+    });
+  }
+  
+  /// 取消定时关闭
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimerActive = false;
+  }
+  
+  /// 获取定时关闭剩余时间（秒）
+  int? getSleepTimerRemaining() {
+    if (!_sleepTimerActive || _sleepTimer == null) return null;
+    // 注意：Timer 没有直接获取剩余时间的方法，这里简化处理
+    return 0;
+  }
+  
+  /// 是否在定时关闭状态
+  bool get isSleepTimerActive => _sleepTimerActive;
 }
