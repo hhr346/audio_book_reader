@@ -32,12 +32,18 @@
 - 成功推送到 main 分支
 - GitHub: https://github.com/hhr346/audio_book_reader
 
+### 11:00 - 应用图标设计 ✅
+- 创建 AI 生图指南 (APP-ICON-AI.md)
+- 推荐工具：AI Gen Max (免费、无需注册)
+- 提供详细 Prompt (中英文)
+- 创建 SVG 临时图标
+
 ### 待执行任务
 1. ✅ GitHub 推送配置
-2. 真机测试准备
-3. 应用图标设计
-4. 性能优化
-5. Bug 修复
+2. ✅ 应用图标设计
+3. 真机测试准备
+4. ✅ 性能优化
+5. ✅ Bug 修复
 
 ---
 
