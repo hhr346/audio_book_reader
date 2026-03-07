@@ -56,12 +56,69 @@ class _BookshelfScreen extends StatefulWidget {
 }
 
 class _BookshelfScreenState extends State<_BookshelfScreen> {
+  String _sortBy = 'date'; // date, title, progress
+  bool _ascending = false;
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('📚 有声书架'),
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: '排序',
+            onSelected: (value) {
+              if (value == 'toggle') {
+                setState(() => _ascending = !_ascending);
+              } else {
+                setState(() => _sortBy = value);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'date',
+                child: Row(
+                  children: [
+                    _sortBy == 'date' ? const Icon(Icons.check) : const SizedBox(),
+                    const SizedBox(width: 8),
+                    const Text('按时间'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'title',
+                child: Row(
+                  children: [
+                    _sortBy == 'title' ? const Icon(Icons.check) : const SizedBox(),
+                    const SizedBox(width: 8),
+                    const Text('按书名'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'progress',
+                child: Row(
+                  children: [
+                    _sortBy == 'progress' ? const Icon(Icons.check) : const SizedBox(),
+                    const SizedBox(width: 8),
+                    const Text('按进度'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'toggle',
+                child: Row(
+                  children: [
+                    Icon(Icons.swap_vert),
+                    SizedBox(width: 8),
+                    Text('切换顺序'),
+                  ],
+                ),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.import_export),
             onPressed: _importBook,
@@ -71,7 +128,10 @@ class _BookshelfScreenState extends State<_BookshelfScreen> {
       ),
       body: Consumer<StorageService>(
         builder: (context, storage, child) {
-          final books = storage.getAllBooks();
+          var books = storage.getAllBooks();
+          
+          // 排序
+          books = _sortBooks(books);
           
           if (books.isEmpty) {
             return _buildEmptyState();
@@ -191,6 +251,24 @@ class _BookshelfScreenState extends State<_BookshelfScreen> {
         builder: (context) => ReaderScreen(book: book),
       ),
     );
+  }
+  
+  List<Book> _sortBooks(List<Book> books) {
+    final sorted = List<Book>.from(books);
+    
+    switch (_sortBy) {
+      case 'date':
+        sorted.sort((a, b) => a.addedAt.compareTo(b.addedAt));
+        break;
+      case 'title':
+        sorted.sort((a, b) => a.title.compareTo(b.title));
+        break;
+      case 'progress':
+        sorted.sort((a, b) => a.currentProgress.compareTo(b.currentProgress));
+        break;
+    }
+    
+    return _ascending ? sorted : sorted.reversed.toList();
   }
 }
 
