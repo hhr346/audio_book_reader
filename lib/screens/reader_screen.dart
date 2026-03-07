@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/book.dart';
 import '../models/chapter.dart';
+import '../models/bookmark.dart';
 import '../services/epub_service.dart';
 import '../services/tts_service.dart';
 import '../services/storage_service.dart';
+import 'bookmarks_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   final Book book;
@@ -137,12 +139,56 @@ class _ReaderScreenState extends State<ReaderScreen> {
     );
   }
 
+  void _addBookmark() {
+    final bookmark = Bookmark(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      bookId: widget.book.id,
+      chapterIndex: _currentChapterIndex,
+      chapterTitle: '第${_currentChapterIndex + 1}章',
+      position: 0,
+      createdAt: DateTime.now(),
+    );
+    
+    StorageService().addBookmark(bookmark);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ 书签已添加'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showBookmarks() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookmarksScreen(
+          bookId: widget.book.id,
+          bookTitle: widget.book.title,
+          filePath: widget.book.filePath,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_border),
+            onPressed: _addBookmark,
+            tooltip: '添加书签',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bookmark),
+            onPressed: _showBookmarks,
+            tooltip: '书签列表',
+          ),
           IconButton(
             icon: const Icon(Icons.list),
             onPressed: _showChapterList,
