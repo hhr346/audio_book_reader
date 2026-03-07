@@ -18,8 +18,13 @@ class StorageService extends ChangeNotifier {
 
   /// 添加图书
   Future<void> addBook(Book book) async {
-    await _books.put(book.id, book);
-    notifyListeners();
+    try {
+      await _books.put(book.id, book);
+      notifyListeners();
+    } catch (e) {
+      print('❌ 添加图书失败：$e');
+      rethrow;
+    }
   }
 
   /// 获取所有图书
@@ -32,14 +37,24 @@ class StorageService extends ChangeNotifier {
 
   /// 更新图书
   Future<void> updateBook(Book book) async {
-    await _books.put(book.id, book);
-    notifyListeners();
+    try {
+      await _books.put(book.id, book);
+      notifyListeners();
+    } catch (e) {
+      print('❌ 更新图书失败：$e');
+      rethrow;
+    }
   }
 
   /// 删除图书
   Future<void> removeBook(String id) async {
-    await _books.delete(id);
-    notifyListeners();
+    try {
+      await _books.delete(id);
+      notifyListeners();
+    } catch (e) {
+      print('❌ 删除图书失败：$e');
+      rethrow;
+    }
   }
 
   /// 获取图书

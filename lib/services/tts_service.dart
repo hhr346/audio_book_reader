@@ -58,10 +58,16 @@ class TtsService {
 
   /// 朗读文本
   Future<void> speak(String text) async {
-    if (_isSpeaking && !_isPaused) {
-      await stop();
+    try {
+      if (_isSpeaking && !_isPaused) {
+        await stop();
+      }
+      await _flutterTts.speak(text);
+    } catch (e) {
+      print('❌ TTS 朗读失败：$e');
+      _isSpeaking = false;
+      rethrow;
     }
-    await _flutterTts.speak(text);
   }
 
   /// 暂停
@@ -88,14 +94,24 @@ class TtsService {
 
   /// 设置语速 (0.0 - 1.0)
   Future<void> setRate(double rate) async {
-    _speechRate = rate;
-    await _flutterTts.setSpeechRate(rate);
+    try {
+      _speechRate = rate;
+      await _flutterTts.setSpeechRate(rate);
+    } catch (e) {
+      print('❌ 设置语速失败：$e');
+      rethrow;
+    }
   }
 
   /// 设置音调 (0.5 - 2.0)
   Future<void> setPitch(double pitch) async {
-    _pitch = pitch;
-    await _flutterTts.setPitch(pitch);
+    try {
+      _pitch = pitch;
+      await _flutterTts.setPitch(pitch);
+    } catch (e) {
+      print('❌ 设置音调失败：$e');
+      rethrow;
+    }
   }
 
   /// 设置语言
