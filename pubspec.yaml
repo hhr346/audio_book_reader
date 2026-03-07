@@ -1,8 +1,13 @@
 name: audio_book_reader
-description: "有声图书阅读器 - 支持 epub 和 TTS 听书"
+description: "有声图书阅读器 - 支持 epub 格式和 TTS 听书功能"
 homepage: "https://github.com/hhr346/audio_book_reader"
 publish_to: 'none'
 version: 1.0.0+1
+
+platforms:
+  ios:
+  android:
+  macos:
 
 environment:
   sdk: ^3.11.0
