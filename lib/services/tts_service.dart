@@ -60,17 +60,20 @@ class TtsService {
       await _flutterTts.setVolume(1.0);
       print('✓ 音量设置完成');
 
-      // 🔑 关键：iOS 专用音频配置
+      // 🔑 关键：iOS 专用音频配置（支持后台播放）
       if (Platform.isIOS) {
-        print('📱 配置 iOS 音频类别...');
+        print('📱 配置 iOS 音频类别（支持后台播放）...');
         try {
-          // 使用 playback 模式，这样使用媒体音量而不是响铃音量
-          // 这样外放时音量更大，且不受静音开关影响
+          // 使用 playback 模式，支持后台播放
+          // 这样锁屏或切换应用后 TTS 仍能继续播放
           await _flutterTts.setIosAudioCategory(
-            IosTextToSpeechAudioCategory.playback,  // 播放模式（使用媒体音量）
-            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],  // 允许与其他音频混合
+            IosTextToSpeechAudioCategory.playback,  // 播放模式
+            [
+              IosTextToSpeechAudioCategoryOptions.mixWithOthers,  // 允许与其他音频混合
+              IosTextToSpeechAudioCategoryOptions.duckOthers,     // 降低其他音频音量
+            ],
           );
-          print('✓ iOS 音频类别设置成功（playback 模式 - 媒体音量）');
+          print('✓ iOS 音频类别设置成功（playback 模式 - 支持后台播放）');
         } catch (e) {
           print('⚠️ iOS 音频类别设置失败：$e');
           // 回退到 ambient 模式
