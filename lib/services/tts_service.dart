@@ -12,9 +12,13 @@ class TtsService {
   bool _isSpeaking = false;
   bool _isPaused = false;
   bool _isInitialized = false;
-  double _speechRate = 0.8; // 默认语速（调高从 0.5 到 0.8）
+  double _speechRate = 0.5; // 默认语速（0.5 是正常速度，0.8 太快了）
   double _pitch = 1.0;
   String? _language = 'zh-CN';
+  
+  // 自动连读支持
+  bool _autoContinue = true; // 是否自动继续阅读下一页
+  Function(String)? onPageChanged; // 翻页回调
   
   // 后台播放支持
   Timer? _sleepTimer;
@@ -56,17 +60,29 @@ class TtsService {
       await _flutterTts.setVolume(1.0);
       print('✓ 音量设置完成');
 
-      // 🔑 关键：iOS 专用音频配置（让 TTS 能和其他音频共存）
+      // 🔑 关键：iOS 专用音频配置
       if (Platform.isIOS) {
         print('📱 配置 iOS 音频类别...');
         try {
+          // 使用 playback 模式，这样使用媒体音量而不是响铃音量
+          // 这样外放时音量更大，且不受静音开关影响
           await _flutterTts.setIosAudioCategory(
-            IosTextToSpeechAudioCategory.ambient,  // 混音模式
-            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+            IosTextToSpeechAudioCategory.playback,  // 播放模式（使用媒体音量）
+            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],  // 允许与其他音频混合
           );
-          print('✓ iOS 音频类别设置成功');
+          print('✓ iOS 音频类别设置成功（playback 模式 - 媒体音量）');
         } catch (e) {
           print('⚠️ iOS 音频类别设置失败：$e');
+          // 回退到 ambient 模式
+          try {
+            await _flutterTts.setIosAudioCategory(
+              IosTextToSpeechAudioCategory.ambient,
+              [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+            );
+            print('✓ 回退到 ambient 模式');
+          } catch (e2) {
+            print('⚠️ ambient 模式也失败：$e2');
+          }
         }
       }
 
@@ -81,6 +97,12 @@ class TtsService {
         _isSpeaking = false;
         _isPaused = false;
         print('✅ TTS 播放完成');
+        
+        // 自动连读：播放完成后自动继续下一页
+        if (_autoContinue && _currentText != null) {
+          print('🔄 触发自动连读回调...');
+          onPageChanged?.call(_currentText!);
+        }
       });
 
       _flutterTts.setCancelHandler(() {
@@ -281,4 +303,19 @@ class TtsService {
   
   /// 是否在定时关闭状态
   bool get isSleepTimerActive => _sleepTimerActive;
+  
+  /// 设置自动连读
+  void setAutoContinue(bool value) {
+    _autoContinue = value;
+    print('⏭️ 自动连读：${value ? "开启" : "关闭"}');
+  }
+  
+  /// 设置翻页回调
+  void setOnPageChanged(Function(String text) callback) {
+    onPageChanged = callback;
+    print('📖 翻页回调已设置');
+  }
+  
+  /// 获取当前语速
+  double get rate => _speechRate;
 }

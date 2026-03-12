@@ -313,6 +313,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
       await ttsService.init();
     }
     
+    // 设置自动连读回调
+    ttsService.setAutoContinue(true);
+    ttsService.setOnPageChanged((text) {
+      // 播放完成后自动翻页并继续朗读
+      print('🔄 自动连读回调触发');
+      if (_isTtsPlaying && mounted) {
+        _nextPageForAutoRead();
+      }
+    });
+    
     if (_isTtsPlaying) {
       print('⏸️ 暂停播放');
       await ttsService.pause();
@@ -343,6 +353,39 @@ class _ReaderScreenState extends State<ReaderScreen> {
         }
       } else {
         print('⚠️ 无法播放：页数=${_pages.length}, 索引=$_currentPageIndex');
+      }
+    }
+  }
+  
+  /// 自动连读时的翻页（不触发 TTS，因为回调会自动处理）
+  Future<void> _nextPageForAutoRead() async {
+    if (_currentPageIndex < _pages.length - 1) {
+      final nextPageIndex = _currentPageIndex + 1;
+      
+      // 更新累计页数
+      _cumulativePagesRead++;
+      
+      setState(() {
+        _currentPageIndex = nextPageIndex;
+        _currentTtsPageIndex = nextPageIndex; // 更新 TTS 页码
+      });
+      
+      // 更新进度
+      await _updateProgress();
+      
+      print('🔄 自动连读：第${_currentChapterIndex + 1}章 第${nextPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
+      
+      // 朗读新页面
+      final ttsService = TtsService();
+      await ttsService.speak(_pages[nextPageIndex]);
+    } else {
+      // 已经是最后一页，进入下一章
+      print('🔄 当前章结束，进入下一章');
+      await _nextChapter();
+      // 下一章第一页自动开始朗读
+      final ttsService = TtsService();
+      if (_pages.isNotEmpty) {
+        await ttsService.speak(_pages[0]);
       }
     }
   }
