@@ -87,25 +87,31 @@ class _ReaderScreenState extends State<ReaderScreen> {
     await _loadSettings();
   }
 
-  /// 计算全书总页数
+  /// 计算全书总页数（逐章累加，确保准确性）
   Future<void> _calculateTotalPages() async {
     try {
-      final screenHeight = MediaQuery.of(context).size.height;
-      final screenWidth = MediaQuery.of(context).size.width;
+      final chapters = await EpubService().getChapters(widget.book.filePath);
       
-      _totalPages = await EpubService().calculateTotalPages(
-        widget.book.filePath,
-        fontSize: _fontSize,
-        lineHeight: _lineHeight,
-        screenWidth: screenWidth.toInt(),
-        screenHeight: screenHeight.toInt(),
-      );
+      _chapterPageCounts.clear();
+      _totalPages = 0;
+      
+      for (int i = 0; i < chapters.length; i++) {
+        final pageCount = await EpubService().getChapterPageCount(
+          widget.book.filePath,
+          i,
+          fontSize: _fontSize,
+          lineHeight: _lineHeight,
+        );
+        _chapterPageCounts[i] = pageCount;
+        _totalPages += pageCount;
+      }
       
       // 更新图书模型的总页数
       widget.book.totalPages = _totalPages;
       await StorageService().updateBook(widget.book);
       
-      print('📊 全书总页数：$_totalPages');
+      print('📊 全书总页数：$_totalPages (共${chapters.length}章)');
+      print('📊 各章页数：${_chapterPageCounts.values.join(", ")}');
     } catch (e) {
       print('❌ 计算总页数失败：$e');
       _totalPages = widget.book.totalChapters * 10; // 估算值
@@ -196,8 +202,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
             print('📖 跳转到新章节：第${_currentChapterIndex + 1}章 第 1 页');
           }
           
-          // 计算累计页数
-          _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, restorePageIndex);
+          // 如果不是强制第一页，且累计页数未设置，则计算累计页数
+          if (!forceFirstPage && _cumulativePagesRead == 0) {
+            _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, restorePageIndex);
+          }
           
           setState(() {
             _pages = pages;
@@ -217,7 +225,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           widget.book.lastReadAt = DateTime.now();
           await StorageService().updateBook(widget.book);
           
-          print('📊 进度：$_cumulativePagesRead/$_totalPages 页 ($progress%)');
+          print('📊 加载完成：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页 ($progress%)');
         }
       }
     } catch (e) {
@@ -341,11 +349,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Future<void> _nextPage() async {
     if (_currentPageIndex < _pages.length - 1) {
-      setState(() => _currentPageIndex++);
-      // 更新累计页数
-      _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, _currentPageIndex);
+      final nextPageIndex = _currentPageIndex + 1;
+      
+      // 更新累计页数（在当前章节内，只需 +1）
+      _cumulativePagesRead++;
+      
+      setState(() {
+        _currentPageIndex = nextPageIndex;
+      });
+      
       // 更新进度
       await _updateProgress();
+      
+      print('📖 下一页：第${_currentChapterIndex + 1}章 第${nextPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
+      
       // 如果 TTS 正在播放，朗读新页面
       if (_isTtsPlaying) {
         TtsService().speak(_pages[_currentPageIndex]);
@@ -358,46 +375,26 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Future<void> _previousPage() async {
     if (_currentPageIndex > 0) {
-      setState(() => _currentPageIndex--);
-      // 更新累计页数
-      _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, _currentPageIndex);
+      final prevPageIndex = _currentPageIndex - 1;
+      
+      // 更新累计页数（在当前章节内，只需 -1）
+      _cumulativePagesRead--;
+      
+      setState(() {
+        _currentPageIndex = prevPageIndex;
+      });
+      
       // 更新进度
       await _updateProgress();
+      
+      print('📖 上一页：第${_currentChapterIndex + 1}章 第${prevPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
+      
       if (_isTtsPlaying) {
         TtsService().speak(_pages[_currentPageIndex]);
       }
     } else {
       // 已经是第一页，返回上一章的最后一页
-      if (_currentChapterIndex > 0) {
-        // 先切换到上一章
-        setState(() => _currentChapterIndex--);
-        // 加载上一章内容
-        final chapter = await EpubService().getChapter(
-          widget.book.filePath,
-          _currentChapterIndex,
-        );
-        
-        if (chapter != null) {
-          final text = chapter.content
-              .replaceAll(RegExp(r'<[^>]*>'), '')
-              .replaceAll(RegExp(r'\s+'), ' ')
-              .trim();
-          
-          final pages = _paginateText(text);
-          final lastPageIndex = pages.isNotEmpty ? pages.length - 1 : 0;
-          
-          setState(() {
-            _pages = pages;
-            _currentPageIndex = lastPageIndex; // 跳转到最后一页
-          });
-          
-          // 更新累计页数
-          _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, lastPageIndex);
-          await _updateProgress();
-          
-          print('📖 跳转到上一章最后一页：第${_currentChapterIndex + 1}章 第${lastPageIndex + 1}页');
-        }
-      }
+      await _previousChapter();
     }
   }
 
@@ -418,29 +415,50 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Future<void> _nextChapter() async {
     if (_currentChapterIndex < widget.book.totalChapters - 1) {
+      final nextChapterIndex = _currentChapterIndex + 1;
+      
+      // 提前计算累计页数（避免 UI 突变）
+      final cumulativePages = await _calculateCumulativePages(nextChapterIndex, 0);
+      
       setState(() {
-        _currentChapterIndex++;
-        _currentPageIndex = 0; // 下一章从第一页开始
+        _currentChapterIndex = nextChapterIndex;
+        _currentPageIndex = 0;
+        _cumulativePagesRead = cumulativePages; // 同时更新累计页数
       });
-      await _loadCurrentChapter(forceFirstPage: true); // 强制跳转到第一页
+      
+      print('📖 切换到下一章：第${nextChapterIndex + 1}章，累计第${cumulativePages + 1}页');
+      
+      await _loadCurrentChapter(forceFirstPage: true);
     }
   }
 
   Future<void> _previousChapter() async {
     if (_currentChapterIndex > 0) {
+      final prevChapterIndex = _currentChapterIndex - 1;
+      
       // 获取上一章的页数
-      final prevChapterPageCount = await EpubService().getChapterPageCount(
-        widget.book.filePath,
-        _currentChapterIndex - 1,
-        fontSize: _fontSize,
-        lineHeight: _lineHeight,
-      );
+      final prevChapterPageCount = _chapterPageCounts[prevChapterIndex] ?? 
+          await EpubService().getChapterPageCount(
+            widget.book.filePath,
+            prevChapterIndex,
+            fontSize: _fontSize,
+            lineHeight: _lineHeight,
+          );
+      
+      final lastPageIndex = prevChapterPageCount - 1;
+      
+      // 提前计算累计页数
+      final cumulativePages = await _calculateCumulativePages(prevChapterIndex, lastPageIndex);
       
       setState(() {
-        _currentChapterIndex--;
-        _currentPageIndex = prevChapterPageCount - 1; // 跳转到上一章的最后一页
+        _currentChapterIndex = prevChapterIndex;
+        _currentPageIndex = lastPageIndex;
+        _cumulativePagesRead = cumulativePages; // 同时更新累计页数
       });
-      await _loadCurrentChapter(forceFirstPage: false); // 允许恢复到指定页
+      
+      print('📖 切换到上一章：第${prevChapterIndex + 1}章 第${lastPageIndex + 1}页，累计第${cumulativePages + 1}页');
+      
+      await _loadCurrentChapter(forceFirstPage: false);
     }
   }
 
