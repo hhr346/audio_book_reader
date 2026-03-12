@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/bookmark.dart';
+import '../models/book.dart';
 import '../services/storage_service.dart';
 import 'reader_screen.dart';
 

@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models/book.dart';
 import 'services/storage_service.dart';
 import 'services/tts_service.dart';
-// import 'services/tts_service_kokoro.dart';  // 启用 Kokoro TTS 时取消注释
 import 'screens/home_screen.dart';
 
 void main() async {

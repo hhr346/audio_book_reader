@@ -1,6 +1,4 @@
 PODS:
-  - audio_session (0.0.1):
-    - Flutter
   - DKImagePickerController/Core (4.3.9):
     - DKImagePickerController/ImageDataManager
     - DKImagePickerController/Resource
@@ -36,19 +34,8 @@ PODS:
     - DKImagePickerController/PhotoGallery
     - Flutter
   - Flutter (1.0.0)
-  - flutter_onnxruntime (0.0.1):
-    - Flutter
-    - onnxruntime-objc (= 1.22.0)
   - flutter_tts (0.0.1):
     - Flutter
-  - just_audio (0.0.1):
-    - Flutter
-    - FlutterMacOS
-  - onnxruntime-c (1.22.0)
-  - onnxruntime-objc (1.22.0):
-    - onnxruntime-objc/Core (= 1.22.0)
-  - onnxruntime-objc/Core (1.22.0):
-    - onnxruntime-c (= 1.22.0)
   - permission_handler_apple (9.3.0):
     - Flutter
   - SDWebImage (5.21.7):
@@ -60,12 +47,9 @@ PODS:
   - SwiftyGif (5.4.5)
 
 DEPENDENCIES:
-  - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
-  - flutter_onnxruntime (from `.symlinks/plugins/flutter_onnxruntime/ios`)
   - flutter_tts (from `.symlinks/plugins/flutter_tts/ios`)
-  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
 
@@ -73,40 +57,27 @@ SPEC REPOS:
   trunk:
     - DKImagePickerController
     - DKPhotoGallery
-    - onnxruntime-c
-    - onnxruntime-objc
     - SDWebImage
     - SwiftyGif
 
 EXTERNAL SOURCES:
-  audio_session:
-    :path: ".symlinks/plugins/audio_session/ios"
   file_picker:
     :path: ".symlinks/plugins/file_picker/ios"
   Flutter:
     :path: Flutter
-  flutter_onnxruntime:
-    :path: ".symlinks/plugins/flutter_onnxruntime/ios"
   flutter_tts:
     :path: ".symlinks/plugins/flutter_tts/ios"
-  just_audio:
-    :path: ".symlinks/plugins/just_audio/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
 
 SPEC CHECKSUMS:
-  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: 07c75322ede1d47ec9bb4ac82b27c94d3598251a
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_onnxruntime: 515c2ab17b67fb027964ebbf2d02329771a482de
   flutter_tts: 35ac3c7d42412733e795ea96ad2d7e05d0a75113
-  just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
-  onnxruntime-c: 7f778680e96145956c0a31945f260321eed2611a
-  onnxruntime-objc: 83d28b87525bd971259a66e153ea32b5d023de19
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb

@@ -23,8 +23,8 @@ dependencies:
   image: ^4.1.7  # 图像处理（封面提取）
   
   # 文本转语音
-  flutter_tts: ^4.0.2  # 备用（系统 TTS）
-  kokoro_tts_flutter: ^0.2.0+1  # Kokoro AI TTS（主要）
+  flutter_tts: ^4.0.2  # 系统 TTS
+  # kokoro_tts_flutter: ^0.2.0+1  # Kokoro AI TTS（暂时禁用，需要时启用）
   
   # 文件选择
   file_picker: ^6.1.1

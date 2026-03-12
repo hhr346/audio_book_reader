@@ -1,28 +1,25 @@
 import 'package:flutter/foundation.dart';
-import 'package:kokoro_tts_flutter/kokoro_tts_flutter.dart';
+// import 'package:kokoro_tts_flutter/kokoro_tts_flutter.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'dart:io';
 
 /// TTS 引擎类型
-enum TtsEngine {
-  kokoro,    // Kokoro AI（高质量，需要模型文件）
-  system     // 系统 TTS（兼容性好）
-}
+// enum TtsEngine {
+//   kokoro,    // Kokoro AI（高质量，需要模型文件）
+//   system     // 系统 TTS（兼容性好）
+// }
 
 class TtsService {
   static final TtsService _instance = TtsService._internal();
   factory TtsService() => _instance;
   TtsService._internal();
 
-  // Kokoro TTS
-  KokoroTtsFlutter? _kokoroTts;
-  
-  // 系统 TTS（备用）
+  // 系统 TTS
   final FlutterTts _flutterTts = FlutterTts();
 
   // 状态
-  TtsEngine _currentEngine = TtsEngine.system;
+  bool _isKokoroEnabled = false; // Kokoro 是否启用
   bool _isSpeaking = false;
   bool _isPaused = false;
   bool _isInitialized = false;
