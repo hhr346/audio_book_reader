@@ -163,11 +163,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
     print('📐 分页计算：${_linesPerPage}行 × ${_charsPerLine}字 = ${_linesPerPage * _charsPerLine}字/页');
   }
 
-  Future<void> _loadCurrentChapter({bool forceFirstPage = false}) async {
+  Future<void> _loadCurrentChapter({bool forceFirstPage = false, bool goToLastPage = false}) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     
     try {
+      print('📖 _loadCurrentChapter 开始加载第${_currentChapterIndex + 1}章');
+      print('  forceFirstPage: $forceFirstPage, goToLastPage: $goToLastPage');
+      
       final chapter = await EpubService().getChapter(
         widget.book.filePath,
         _currentChapterIndex,
@@ -188,8 +191,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
         // 分页处理
         final pages = _paginateText(text);
         
+        print('  分页完成：共${pages.length}页');
+        
         if (mounted) {
-          // 恢复页面位置：书签位置 > 强制第一页 > 第一页
+          // 恢复页面位置
           int restorePageIndex = 0;
           
           if (widget.initialPageIndex != null && widget.initialPageIndex! < pages.length) {
@@ -200,18 +205,42 @@ class _ReaderScreenState extends State<ReaderScreen> {
             // 强制跳转到第一页（章节切换时）
             restorePageIndex = 0;
             print('📖 跳转到新章节：第${_currentChapterIndex + 1}章 第 1 页');
+          } else if (goToLastPage) {
+            // 跳转到最后一页（从下一章返回上一章时）
+            restorePageIndex = pages.length - 1;
+            print('📖 跳转到最后一页：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
           }
           
-          // 如果不是强制第一页，且累计页数未设置，则计算累计页数
-          if (!forceFirstPage && _cumulativePagesRead == 0) {
-            _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, restorePageIndex);
+          // 确保页码不超出范围
+          if (restorePageIndex >= pages.length) {
+            print('⚠️ 页码超出范围，调整为最后一页');
+            restorePageIndex = pages.length - 1;
           }
+          if (restorePageIndex < 0) {
+            print('⚠️ 页码为负，调整为第一页');
+            restorePageIndex = 0;
+          }
+          
+          // 计算累计页数
+          _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, restorePageIndex);
+          
+          // 更新该章的实际页数（使用实际分页结果）
+          _chapterPageCounts[_currentChapterIndex] = pages.length;
           
           setState(() {
             _pages = pages;
             _currentPageIndex = restorePageIndex;
             _isLoading = false;
           });
+          
+          // 重新计算总页数（使用最新的各章页数）
+          int newTotalPages = 0;
+          for (int i = 0; i < widget.book.totalChapters; i++) {
+            newTotalPages += _chapterPageCounts[i] ?? 0;
+          }
+          if (newTotalPages > 0) {
+            _totalPages = newTotalPages;
+          }
           
           // 更新阅读进度（按总页数计算）
           final progress = _totalPages > 0 
@@ -225,10 +254,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
           widget.book.lastReadAt = DateTime.now();
           await StorageService().updateBook(widget.book);
           
-          print('📊 加载完成：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页 ($progress%)');
+          print('📊 加载完成：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}/${pages.length}页，累计${_cumulativePagesRead + 1}/$_totalPages 页 ($progress%)');
         }
       }
     } catch (e) {
+      print('❌ 加载章节失败：$e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -457,51 +487,58 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Future<void> _nextChapter() async {
+    print('📖 _nextChapter 被调用');
+    print('  当前章节索引：$_currentChapterIndex');
+    print('  图书总章节数：${widget.book.totalChapters}');
+    print('  条件判断：${_currentChapterIndex < widget.book.totalChapters - 1}');
+    
     if (_currentChapterIndex < widget.book.totalChapters - 1) {
       final nextChapterIndex = _currentChapterIndex + 1;
       
       // 提前计算累计页数（避免 UI 突变）
       final cumulativePages = await _calculateCumulativePages(nextChapterIndex, 0);
       
+      print('  下一章索引：$nextChapterIndex');
+      print('  累计页数：$cumulativePages');
+      
       setState(() {
         _currentChapterIndex = nextChapterIndex;
         _currentPageIndex = 0;
-        _cumulativePagesRead = cumulativePages; // 同时更新累计页数
+        _cumulativePagesRead = cumulativePages;
       });
       
       print('📖 切换到下一章：第${nextChapterIndex + 1}章，累计第${cumulativePages + 1}页');
       
       await _loadCurrentChapter(forceFirstPage: true);
+    } else {
+      print('⚠️ 已经是最后一章，无法切换到下一章');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已经是最后一章'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _previousChapter() async {
     if (_currentChapterIndex > 0) {
+      print('📖 _previousChapter 被调用');
+      print('  当前章节：$_currentChapterIndex');
+      print('  切换到上一章：${_currentChapterIndex - 1}');
+      
       final prevChapterIndex = _currentChapterIndex - 1;
       
-      // 获取上一章的页数
-      final prevChapterPageCount = _chapterPageCounts[prevChapterIndex] ?? 
-          await EpubService().getChapterPageCount(
-            widget.book.filePath,
-            prevChapterIndex,
-            fontSize: _fontSize,
-            lineHeight: _lineHeight,
-          );
-      
-      final lastPageIndex = prevChapterPageCount - 1;
-      
-      // 提前计算累计页数
-      final cumulativePages = await _calculateCumulativePages(prevChapterIndex, lastPageIndex);
-      
+      // 先切换到上一章并加载
       setState(() {
         _currentChapterIndex = prevChapterIndex;
-        _currentPageIndex = lastPageIndex;
-        _cumulativePagesRead = cumulativePages; // 同时更新累计页数
+        _currentPageIndex = 0; // 先设为 0，加载后再调整
       });
       
-      print('📖 切换到上一章：第${prevChapterIndex + 1}章 第${lastPageIndex + 1}页，累计第${cumulativePages + 1}页');
-      
-      await _loadCurrentChapter(forceFirstPage: false);
+      // 加载上一章内容
+      await _loadCurrentChapter(forceFirstPage: false, goToLastPage: true);
     }
   }
 
