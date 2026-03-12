@@ -75,10 +75,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _fontSize = prefs.getDouble('font_size') ?? 18.0;
       _isDarkMode = prefs.getBool('is_dark_mode') ?? false;
     });
+  }
+  
+  /// 重新加载设置（主题变化时调用）
+  Future<void> _reloadSettings() async {
+    await _loadSettings();
   }
 
   /// 计算全书总页数
@@ -151,7 +157,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     print('📐 分页计算：${_linesPerPage}行 × ${_charsPerLine}字 = ${_linesPerPage * _charsPerLine}字/页');
   }
 
-  Future<void> _loadCurrentChapter() async {
+  Future<void> _loadCurrentChapter({bool forceFirstPage = false}) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     
@@ -177,17 +183,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
         final pages = _paginateText(text);
         
         if (mounted) {
-          // 恢复页面位置：书签位置 > 上次阅读位置 > 第一页
+          // 恢复页面位置：书签位置 > 强制第一页 > 第一页
           int restorePageIndex = 0;
           
           if (widget.initialPageIndex != null && widget.initialPageIndex! < pages.length) {
             // 从书签打开
             restorePageIndex = widget.initialPageIndex!;
             print('📑 从书签恢复：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
-          } else if (widget.book.currentPageIndex < pages.length) {
-            // 上次阅读位置
-            restorePageIndex = widget.book.currentPageIndex;
-            print('📖 恢复上次阅读位置：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
+          } else if (forceFirstPage) {
+            // 强制跳转到第一页（章节切换时）
+            restorePageIndex = 0;
+            print('📖 跳转到新章节：第${_currentChapterIndex + 1}章 第 1 页');
           }
           
           // 计算累计页数
@@ -389,7 +395,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _currentChapterIndex++;
         _currentPageIndex = 0; // 下一章从第一页开始
       });
-      await _loadCurrentChapter();
+      await _loadCurrentChapter(forceFirstPage: true); // 强制跳转到第一页
     }
   }
 
@@ -407,7 +413,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _currentChapterIndex--;
         _currentPageIndex = prevChapterPageCount - 1; // 跳转到上一章的最后一页
       });
-      await _loadCurrentChapter();
+      await _loadCurrentChapter(forceFirstPage: false); // 允许恢复到指定页
     }
   }
 
@@ -444,7 +450,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       _currentChapterIndex = index;
                       _currentPageIndex = 0; // 新章节从第一页开始
                     });
-                    _loadCurrentChapter();
+                    _loadCurrentChapter(forceFirstPage: true); // 强制跳转到第一页
                     Navigator.pop(context);
                   },
                 ),
@@ -502,16 +508,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
               _loadCurrentChapter(); // 重新分页
             });
           },
-          onThemeChanged: (isDark) {
+          onThemeChanged: (isDark) async {
+            // 立即更新本地状态
             setState(() => _isDarkMode = isDark);
+            // 保存到 SharedPreferences
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_dark_mode', isDark);
           },
           currentFontSize: _fontSize,
           currentIsDarkMode: _isDarkMode,
         ),
       ),
     );
-    // 返回后重新加载设置
-    _loadSettings();
+    // 返回后重新加载设置（确保同步）
+    await _loadSettings();
   }
 
   @override
