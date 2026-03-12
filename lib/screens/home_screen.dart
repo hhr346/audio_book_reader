@@ -6,9 +6,17 @@ import '../models/book.dart';
 import '../services/epub_service.dart';
 import '../services/storage_service.dart';
 import 'reader_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isDarkMode;
+  final Function(bool) onThemeChanged;
+  
+  const HomeScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeChanged,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -16,11 +24,41 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _themeInitialized = false;
   
-  final List<Widget> _screens = [
-    const _BookshelfScreen(),
-    const SettingsScreen(),
-  ];
+  late List<Widget> _screens;
+  
+  @override
+  void initState() {
+    super.initState();
+    _themeInitialized = true;
+    _screens = [
+      const _BookshelfScreen(),
+      SettingsScreen(
+        onFontSizeChanged: (_) {},
+        onThemeChanged: widget.onThemeChanged,
+        currentFontSize: 18.0,
+        currentIsDarkMode: widget.isDarkMode,
+      ),
+    ];
+  }
+  
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 主题变化时更新设置页面
+    if (oldWidget.isDarkMode != widget.isDarkMode) {
+      _screens = [
+        const _BookshelfScreen(),
+        SettingsScreen(
+          onFontSizeChanged: (_) {},
+          onThemeChanged: widget.onThemeChanged,
+          currentFontSize: 18.0,
+          currentIsDarkMode: widget.isDarkMode,
+        ),
+      ];
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -270,10 +308,6 @@ class _BookshelfScreenState extends State<_BookshelfScreen> {
     
     return _ascending ? sorted : sorted.reversed.toList();
   }
-}
-
-  @override
-  State<_BookshelfScreen> createState() => _BookshelfScreenState();
 }
 
 class _BookCard extends StatelessWidget {

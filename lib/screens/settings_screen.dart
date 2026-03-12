@@ -1,20 +1,52 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tts_service.dart';
-import '../services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final Function(double) onFontSizeChanged;
+  final Function(bool) onThemeChanged;
+  final double currentFontSize;
+  final bool currentIsDarkMode;
+
+  const SettingsScreen({
+    super.key,
+    required this.onFontSizeChanged,
+    required this.onThemeChanged,
+    required this.currentFontSize,
+    required this.currentIsDarkMode,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  double _fontSize = 16.0;
-  bool _isDarkMode = false;
+  late double _fontSize;
+  late bool _isDarkMode;
   int _sleepTimerMinutes = 30;
   
+  @override
+  void initState() {
+    super.initState();
+    _fontSize = widget.currentFontSize;
+    _isDarkMode = widget.currentIsDarkMode;
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _fontSize = prefs.getDouble('font_size') ?? widget.currentFontSize;
+      _isDarkMode = prefs.getBool('is_dark_mode') ?? widget.currentIsDarkMode;
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('font_size', _fontSize);
+    await prefs.setBool('is_dark_mode', _isDarkMode);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.text_fields),
                   title: const Text('字体大小'),
-                  subtitle: Text('${_fontSize.round()}px'),
+                  subtitle: Text('${_fontSize.round()}磅'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showFontSizeDialog(),
                 ),
@@ -43,7 +75,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('深色主题更护眼'),
                   value: _isDarkMode,
                   onChanged: (value) {
-                    setState(() => _isDarkMode = value);
+                    setState(() {
+                      _isDarkMode = value;
+                      widget.onThemeChanged(value);
+                      _saveSettings();
+                    });
                     _showThemeChangeSnackbar();
                   },
                 ),
@@ -87,7 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: const Text('应用信息'),
-                  subtitle: const Text('版本 0.1.0'),
+                  subtitle: const Text('版本 0.2.0 - 支持分页阅读'),
                   onTap: () => _showAboutDialog(),
                 ),
               ],
@@ -113,6 +149,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showFontSizeDialog() {
+    double tempFontSize = _fontSize;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -122,24 +160,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Slider(
-                value: _fontSize,
-                min: 12,
-                max: 24,
-                divisions: 12,
-                label: '${_fontSize.round()}px',
+                value: tempFontSize,
+                min: 16,
+                max: 40,
+                divisions: 24,
+                label: '${tempFontSize.round()}磅',
                 onChanged: (value) {
-                  setDialogState(() => _fontSize = value);
-                  setState(() {});
+                  setDialogState(() => tempFontSize = value);
                 },
               ),
-              const Text(
+              const SizedBox(height: 16),
+              Text(
                 '预览效果',
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: tempFontSize),
               ),
               const SizedBox(height: 8),
               Text(
-                '这是预览文本',
-                style: TextStyle(fontSize: _fontSize),
+                '这是预览文本，字体大小会实时变化',
+                style: TextStyle(fontSize: tempFontSize),
               ),
             ],
           ),
@@ -151,7 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {});
+              setState(() {
+                _fontSize = tempFontSize;
+                widget.onFontSizeChanged(_fontSize);
+                _saveSettings();
+              });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('✅ 字体大小已保存')),
@@ -268,12 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(_isDarkMode ? '🌙 已切换到夜间模式' : '☀️ 已切换到日间模式'),
-        action: SnackBarAction(
-          label: '撤销',
-          onPressed: () {
-            setState(() => _isDarkMode = !_isDarkMode);
-          },
-        ),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -282,16 +319,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showAboutDialog(
       context: context,
       applicationName: '有声图书阅读器',
-      applicationVersion: '0.1.0',
+      applicationVersion: '0.2.0',
       applicationIcon: const Icon(Icons.menu_book, size: 48),
       children: [
         const Text('一款支持 epub 格式的图书阅读器，配备 TTS 听书功能。'),
         const SizedBox(height: 16),
         const Text('功能特性：'),
         const Text('• epub 格式支持'),
-        const Text('• TTS 文本转语音'),
+        const Text('• TTS 文本转语音（端侧模型）'),
+        const Text('• 分页阅读体验'),
         const Text('• 阅读进度追踪'),
         const Text('• 定时关闭功能'),
+        const Text('• 字体大小调节'),
+        const Text('• 夜间模式'),
       ],
     );
   }
