@@ -11,7 +11,7 @@ class TtsService {
   bool _isSpeaking = false;
   bool _isPaused = false;
   bool _isInitialized = false;
-  double _speechRate = 0.5; // 默认语速
+  double _speechRate = 0.8; // 默认语速（调高从 0.5 到 0.8）
   double _pitch = 1.0;
   String? _language = 'zh-CN';
   
@@ -31,10 +31,29 @@ class TtsService {
     }
     
     try {
-      await _flutterTts.setLanguage(_language!);
+      print('🔧 开始初始化 TTS...');
+      print('  - 语言：$_language');
+      print('  - 语速：$_speechRate');
+      print('  - 音调：$_pitch');
+      
+      // 设置语言（带错误处理）
+      try {
+        final langResult = await _flutterTts.setLanguage(_language!);
+        print('✓ 语言设置结果：$langResult');
+      } catch (e) {
+        print('⚠️ 语言设置失败：$e，尝试使用英语');
+        _language = 'en-US';
+        await _flutterTts.setLanguage('en-US');
+      }
+      
       await _flutterTts.setSpeechRate(_speechRate);
+      print('✓ 语速设置完成');
+      
       await _flutterTts.setPitch(_pitch);
+      print('✓ 音调设置完成');
+      
       await _flutterTts.setVolume(1.0);
+      print('✓ 音量设置完成');
 
       // 监听状态
       _flutterTts.setStartHandler(() {
@@ -72,6 +91,7 @@ class TtsService {
       
       _isInitialized = true;
       print('✅ TTS 初始化完成');
+      print('📱 平台信息：iOS 模拟器可能需要真机测试 TTS');
     } catch (e) {
       print('❌ TTS 初始化失败：$e');
       rethrow;
@@ -86,6 +106,10 @@ class TtsService {
         return;
       }
       
+      print('🔊 TTS speak() 被调用');
+      print('  - 文本长度：${text.length}');
+      print('  - 文本内容：${text.substring(0, text.length > 30 ? 30 : text.length)}...');
+      
       // 确保已初始化
       if (!_isInitialized) {
         print('⚠️ TTS 未初始化，正在初始化...');
@@ -94,15 +118,19 @@ class TtsService {
       
       // 如果正在说话，先停止
       if (_isSpeaking && !_isPaused) {
+        print('⏹️ 正在播放，先停止');
         await stop();
         await Future.delayed(const Duration(milliseconds: 100));
       }
       
       _currentText = text;
+      print('📞 调用 _flutterTts.speak()...');
       final result = await _flutterTts.speak(text);
-      print('📖 开始朗读：${text.substring(0, text.length > 50 ? 50 : text.length)}... 结果：$result');
+      print('📖 speak() 返回结果：$result');
+      print('📖 开始朗读：${text.substring(0, text.length > 50 ? 50 : text.length)}...');
     } catch (e) {
       print('❌ TTS 朗读失败：$e');
+      print('❌ 错误类型：${e.runtimeType}');
       _isSpeaking = false;
       rethrow;
     }

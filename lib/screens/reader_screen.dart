@@ -291,23 +291,50 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Future<void> _toggleTts() async {
+    print('🎙️ _toggleTts() 被调用');
     final ttsService = TtsService();
+    
+    print('  - TTS 已初始化：${ttsService.isInitialized}');
+    print('  - 当前是否播放：$_isTtsPlaying');
+    print('  - 页数：${_pages.length}');
+    print('  - 当前页索引：$_currentPageIndex');
     
     // 首次使用时初始化
     if (!ttsService.isInitialized) {
+      print('⚠️ TTS 未初始化，开始初始化...');
       await ttsService.init();
     }
     
     if (_isTtsPlaying) {
+      print('⏸️ 暂停播放');
       await ttsService.pause();
       setState(() => _isTtsPlaying = false);
     } else {
       if (_pages.isNotEmpty && _currentPageIndex < _pages.length) {
-        await ttsService.speak(_pages[_currentPageIndex]);
-        setState(() {
-          _isTtsPlaying = true;
-          _currentTtsPageIndex = _currentPageIndex;
-        });
+        final textToSpeak = _pages[_currentPageIndex];
+        print('▶️ 开始播放第${_currentPageIndex + 1}页');
+        print('  - 文本长度：${textToSpeak.length}');
+        
+        try {
+          await ttsService.speak(textToSpeak);
+          setState(() {
+            _isTtsPlaying = true;
+            _currentTtsPageIndex = _currentPageIndex;
+          });
+          print('✅ TTS 播放状态已更新');
+        } catch (e) {
+          print('❌ TTS 播放失败：$e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ TTS 播放失败：$e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        print('⚠️ 无法播放：页数=${_pages.length}, 索引=$_currentPageIndex');
       }
     }
   }
