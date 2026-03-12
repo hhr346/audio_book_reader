@@ -1,5 +1,6 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 
 class TtsService {
   static final TtsService _instance = TtsService._internal();
@@ -55,6 +56,20 @@ class TtsService {
       await _flutterTts.setVolume(1.0);
       print('✓ 音量设置完成');
 
+      // 🔑 关键：iOS 专用音频配置（让 TTS 能和其他音频共存）
+      if (Platform.isIOS) {
+        print('📱 配置 iOS 音频类别...');
+        try {
+          await _flutterTts.setIosAudioCategory(
+            IosTextToSpeechAudioCategory.ambient,  // 混音模式
+            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+          );
+          print('✓ iOS 音频类别设置成功');
+        } catch (e) {
+          print('⚠️ iOS 音频类别设置失败：$e');
+        }
+      }
+
       // 监听状态
       _flutterTts.setStartHandler(() {
         _isSpeaking = true;
@@ -91,7 +106,6 @@ class TtsService {
       
       _isInitialized = true;
       print('✅ TTS 初始化完成');
-      print('📱 平台信息：iOS 模拟器可能需要真机测试 TTS');
     } catch (e) {
       print('❌ TTS 初始化失败：$e');
       rethrow;
@@ -147,11 +161,11 @@ class TtsService {
   /// 继续
   Future<void> resume() async {
     if (_isPaused) {
-      await _flutterTts.stop();
-      // 重新朗读当前文本
+      // iOS 直接调用 speak 即可继续
       if (_currentText != null && _currentText!.isNotEmpty) {
-        await speak(_currentText!);
+        await _flutterTts.speak(_currentText!);
       }
+      _isPaused = false;
       print('▶️ 继续播放');
     }
   }
