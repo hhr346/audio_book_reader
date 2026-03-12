@@ -21,6 +21,7 @@ dependencies:
   # epub 解析
   epub_plus: ^5.1.0
   image: ^4.1.7  # 图像处理（封面提取）
+  archive: ^3.4.9  # ZIP 解压（用于解析 NCX）
   
   # 文本转语音
   flutter_tts: ^4.0.2  # 系统 TTS
