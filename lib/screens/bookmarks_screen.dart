@@ -72,13 +72,25 @@ class BookmarksScreen extends StatelessWidget {
   }
 
   void _jumpToBookmark(BuildContext context, Bookmark bookmark) {
-    // TODO: 跳转到阅读器并定位到书签位置
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('跳转到 ${bookmark.chapterTitle}'),
-        action: SnackBarAction(
-          label: '好的',
-          onPressed: () {},
+    // 关闭书签页面
+    Navigator.pop(context);
+    
+    // 打开阅读器并跳转到书签位置
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReaderScreen(
+          book: Book(
+            id: bookmark.bookId,
+            title: bookTitle,
+            author: '',
+            coverPath: '',
+            filePath: filePath,
+            totalChapters: 0,
+            addedAt: DateTime.now(),
+          ),
+          initialChapterIndex: bookmark.chapterIndex,
+          initialPageIndex: bookmark.position,
         ),
       ),
     );

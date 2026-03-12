@@ -11,8 +11,15 @@ import 'settings_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   final Book book;
+  final int? initialChapterIndex;
+  final int? initialPageIndex;
 
-  const ReaderScreen({super.key, required this.book});
+  const ReaderScreen({
+    super.key,
+    required this.book,
+    this.initialChapterIndex,
+    this.initialPageIndex,
+  });
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -20,7 +27,7 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   late Future<List<Chapter>> _chaptersFuture;
-  int _currentChapterIndex = 0;
+  late int _currentChapterIndex; // 初始化为上次阅读的章节
   
   // 分页相关
   List<String> _pages = [];
@@ -50,11 +57,19 @@ class _ReaderScreenState extends State<ReaderScreen> {
     super.initState();
     _chaptersFuture = EpubService().getChapters(widget.book.filePath);
     _loadSettings();
+    // 初始化章节索引：书签位置 > 上次阅读位置 > 第一章
+    if (widget.initialChapterIndex != null) {
+      _currentChapterIndex = widget.initialChapterIndex!;
+      print('📑 从书签打开：第${_currentChapterIndex + 1}章');
+    } else {
+      _currentChapterIndex = widget.book.currentChapterIndex;
+      print('📖 打开图书，上次位置：第${_currentChapterIndex + 1}章，第${widget.book.currentPageIndex + 1}页');
+    }
     // 延迟加载，确保屏幕尺寸已获取
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _calculatePageCapacity();
       await _calculateTotalPages();
-      await _loadCurrentChapter(); // 会恢复上次位置
+      await _loadCurrentChapter(); // 会恢复上次位置或书签位置
     });
   }
 
@@ -162,10 +177,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
         final pages = _paginateText(text);
         
         if (mounted) {
-          // 恢复上次阅读位置
+          // 恢复页面位置：书签位置 > 上次阅读位置 > 第一页
           int restorePageIndex = 0;
-          if (widget.book.currentChapterIndex == _currentChapterIndex && 
-              widget.book.currentPageIndex < pages.length) {
+          
+          if (widget.initialPageIndex != null && widget.initialPageIndex! < pages.length) {
+            // 从书签打开
+            restorePageIndex = widget.initialPageIndex!;
+            print('📑 从书签恢复：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
+          } else if (widget.book.currentPageIndex < pages.length) {
+            // 上次阅读位置
             restorePageIndex = widget.book.currentPageIndex;
             print('📖 恢复上次阅读位置：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
           }
@@ -314,8 +334,37 @@ class _ReaderScreenState extends State<ReaderScreen> {
         TtsService().speak(_pages[_currentPageIndex]);
       }
     } else {
-      // 已经是第一页，返回上一章
-      await _previousChapter();
+      // 已经是第一页，返回上一章的最后一页
+      if (_currentChapterIndex > 0) {
+        // 先切换到上一章
+        setState(() => _currentChapterIndex--);
+        // 加载上一章内容
+        final chapter = await EpubService().getChapter(
+          widget.book.filePath,
+          _currentChapterIndex,
+        );
+        
+        if (chapter != null) {
+          final text = chapter.content
+              .replaceAll(RegExp(r'<[^>]*>'), '')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim();
+          
+          final pages = _paginateText(text);
+          final lastPageIndex = pages.isNotEmpty ? pages.length - 1 : 0;
+          
+          setState(() {
+            _pages = pages;
+            _currentPageIndex = lastPageIndex; // 跳转到最后一页
+          });
+          
+          // 更新累计页数
+          _cumulativePagesRead = await _calculateCumulativePages(_currentChapterIndex, lastPageIndex);
+          await _updateProgress();
+          
+          print('📖 跳转到上一章最后一页：第${_currentChapterIndex + 1}章 第${lastPageIndex + 1}页');
+        }
+      }
     }
   }
 
@@ -346,9 +395,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Future<void> _previousChapter() async {
     if (_currentChapterIndex > 0) {
+      // 获取上一章的页数
+      final prevChapterPageCount = await EpubService().getChapterPageCount(
+        widget.book.filePath,
+        _currentChapterIndex - 1,
+        fontSize: _fontSize,
+        lineHeight: _lineHeight,
+      );
+      
       setState(() {
         _currentChapterIndex--;
-        _currentPageIndex = 0; // 上一章从第一页开始（可以改为最后一页）
+        _currentPageIndex = prevChapterPageCount - 1; // 跳转到上一章的最后一页
       });
       await _loadCurrentChapter();
     }

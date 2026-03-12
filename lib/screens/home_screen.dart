@@ -316,12 +316,43 @@ class _BookCard extends StatelessWidget {
 
   const _BookCard({required this.book, required this.onTap});
 
+  void _showDeleteConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除图书'),
+        content: Text('确定要删除《${book.title}》吗？\n\n此操作不可恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // 关闭对话框
+              StorageService().removeBook(book.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ 《${book.title}》已删除'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: () => _showDeleteConfirm(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
