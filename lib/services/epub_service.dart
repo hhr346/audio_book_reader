@@ -8,25 +8,25 @@ import 'package:archive/archive.dart';
 import '../models/book.dart';
 import '../models/chapter.dart';
 
+/// NCX 导航点数据结构
+class NcxNavPoint {
+  final String id;
+  final String title;
+  final String src;
+  final String? anchor; // 锚点（#filepos109）
+
+  NcxNavPoint({
+    required this.id,
+    required this.title,
+    required this.src,
+    this.anchor,
+  });
+}
+
 class EpubService {
   static final EpubService _instance = EpubService._internal();
   factory EpubService() => _instance;
   EpubService._internal();
-
-  /// NCX 导航点数据结构
-  class NcxNavPoint {
-    final String id;
-    final String title;
-    final String src;
-    final String? anchor; // 锚点（#filepos109）
-
-    NcxNavPoint({
-      required this.id,
-      required this.title,
-      required this.src,
-      this.anchor,
-    });
-  }
 
   /// 解析 epub 文件
   Future<EpubBook> parseEpub(String filePath) async {
