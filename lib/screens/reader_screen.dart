@@ -346,10 +346,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     ttsService.setAutoContinue(true);
     ttsService.setOnPageChanged((text) {
       // 播放完成后自动翻页并继续朗读
-      print('🔄 自动连读回调触发');
-      if (_isTtsPlaying && mounted) {
-        _nextPageForAutoRead();
-      }
+      // 移除自动连读功能 - 用户手动翻页时才翻页
+      print('🔄 自动连读已禁用，等待用户手动翻页');
     });
     
     if (_isTtsPlaying) {
@@ -370,14 +368,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           print('✅ TTS 播放状态已更新，当前页：${_currentPageIndex + 1}');
         } catch (e) {
           print('❌ TTS 播放失败：$e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ TTS 播放失败：$e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          // 移除错误弹窗
         }
       } else {
         print('⚠️ 无法播放：页数=${_pages.length}, 索引=$_currentPageIndex');
@@ -385,36 +376,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
   }
   
-  /// 自动连读时的翻页（不触发 TTS，因为回调会自动处理）
+  /// 自动连读功能已移除 - 用户手动控制翻页
+  /// 保留此方法以备将来使用
   Future<void> _nextPageForAutoRead() async {
-    if (_currentPageIndex < _pages.length - 1) {
-      final nextPageIndex = _currentPageIndex + 1;
-      
-      // 更新累计页数
-      _cumulativePagesRead++;
-      
-      setState(() {
-        _currentPageIndex = nextPageIndex;
-      });
-      
-      // 更新进度
-      await _updateProgress();
-      
-      print('🔄 自动连读：第${_currentChapterIndex + 1}章 第${nextPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
-      
-      // 朗读新页面
-      final ttsService = TtsService();
-      await ttsService.speak(_pages[nextPageIndex]);
-    } else {
-      // 已经是最后一页，进入下一章
-      print('🔄 当前章结束，进入下一章');
-      await _nextChapter();
-      // 下一章第一页自动开始朗读
-      final ttsService = TtsService();
-      if (_pages.isNotEmpty) {
-        await ttsService.speak(_pages[0]);
-      }
-    }
+    // 功能已禁用
   }
 
   Future<void> _nextPage() async {

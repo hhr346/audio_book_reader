@@ -35,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fontSize = widget.currentFontSize;
     _isDarkMode = widget.currentIsDarkMode;
     _loadSettings();
-    _startCountdownUpdate();
+    _checkSleepTimerStatus();
   }
   
   @override
@@ -44,19 +44,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
   
-  /// 每秒更新倒计时显示
-  void _startCountdownUpdate() {
+  /// 检查定时关闭状态并更新
+  void _checkSleepTimerStatus() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _sleepTimerEnabled) {
+      if (mounted) {
         final remaining = TtsService().getSleepTimerRemaining();
-        if (remaining != null && remaining > 0) {
+        final isActive = TtsService().isSleepTimerActive;
+        
+        if (isActive && remaining != null && remaining > 0) {
+          if (!_sleepTimerEnabled) {
+            setState(() => _sleepTimerEnabled = true);
+          }
           setState(() => _remainingSeconds = remaining);
-        } else if (remaining == 0 || remaining == null) {
-          setState(() {
-            _sleepTimerEnabled = false;
-            _remainingSeconds = 0;
-          });
+        } else {
+          if (_sleepTimerEnabled) {
+            setState(() {
+              _sleepTimerEnabled = false;
+              _remainingSeconds = 0;
+            });
+          }
         }
       }
     });
@@ -123,31 +130,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.timer),
+                ListTile(
+                  leading: const Icon(Icons.timer),
                   title: const Text('定时关闭'),
                   subtitle: _sleepTimerEnabled
-                      ? Text('⏰ 剩余：${_formatTime(_remainingSeconds)}')
-                      : Text('$_sleepTimerMinutes 分钟后停止播放'),
-                  value: _sleepTimerEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _sleepTimerEnabled = value;
-                    });
-                    if (value) {
-                      // 开启定时关闭
-                      TtsService().setSleepTimer(_sleepTimerMinutes);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('✅ 定时关闭已开启：$_sleepTimerMinutes 分钟')),
-                      );
-                    } else {
-                      // 关闭定时关闭
-                      TtsService().cancelSleepTimer();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('❌ 定时关闭已取消')),
-                      );
-                    }
-                  },
+                      ? Text('⏰ 运行中：剩余 ${_formatTime(_remainingSeconds)}')
+                      : const Text('点击设置定时时间'),
+                  trailing: _sleepTimerEnabled
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.chevron_right),
+                  onTap: () => _showSleepTimerDialog(),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -250,9 +242,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _saveSettings();
               });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ 字体大小已保存')),
-              );
             },
             child: const Text('确定'),
           ),
@@ -265,39 +254,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('定时关闭时间'),
+        title: const Text('定时关闭'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('选择定时时间'),
-            const SizedBox(height: 16),
+            if (_sleepTimerEnabled) ...[
+              // 已开启时显示关闭选项
+              const Text('定时关闭正在运行', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Text(
+                '剩余时间：${_formatTime(_remainingSeconds)}',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text('选择新的定时时间', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+            ] else ...[
+              const Text('选择定时时间', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 16),
+            ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _TimerChip(minutes: 15, selected: _sleepTimerMinutes == 15),
-                _TimerChip(minutes: 30, selected: _sleepTimerMinutes == 30),
-                _TimerChip(minutes: 60, selected: _sleepTimerMinutes == 60),
-                _TimerChip(minutes: 90, selected: _sleepTimerMinutes == 90),
+                _TimerChip(
+                  minutes: 15, 
+                  selected: _sleepTimerMinutes == 15,
+                  onTap: () => setState(() => _sleepTimerMinutes = 15),
+                ),
+                _TimerChip(
+                  minutes: 30, 
+                  selected: _sleepTimerMinutes == 30,
+                  onTap: () => setState(() => _sleepTimerMinutes = 30),
+                ),
+                _TimerChip(
+                  minutes: 45, 
+                  selected: _sleepTimerMinutes == 45,
+                  onTap: () => setState(() => _sleepTimerMinutes = 45),
+                ),
+                _TimerChip(
+                  minutes: 60, 
+                  selected: _sleepTimerMinutes == 60,
+                  onTap: () => setState(() => _sleepTimerMinutes = 60),
+                ),
+                _TimerChip(
+                  minutes: 90, 
+                  selected: _sleepTimerMinutes == 90,
+                  onTap: () => setState(() => _sleepTimerMinutes = 90),
+                ),
+                _TimerChip(
+                  minutes: 120, 
+                  selected: _sleepTimerMinutes == 120,
+                  onTap: () => setState(() => _sleepTimerMinutes = 120),
+                ),
               ],
             ),
           ],
         ),
         actions: [
+          if (_sleepTimerEnabled)
+            TextButton(
+              onPressed: () {
+                TtsService().cancelSleepTimer();
+                setState(() => _sleepTimerEnabled = false);
+                Navigator.pop(context);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('关闭定时'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
-              // 只设置时间，不立即启动
-              setState(() {
-                _sleepTimerMinutes = _sleepTimerMinutes;
-              });
+              TtsService().setSleepTimer(_sleepTimerMinutes);
+              setState(() => _sleepTimerEnabled = true);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('⏰ 定时时间已设置为 $_sleepTimerMinutes 分钟，请在设置界面开启')),
-              );
             },
             child: const Text('确定'),
           ),
@@ -306,13 +341,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _TimerChip({required int minutes, required bool selected}) {
+  Widget _TimerChip({required int minutes, required bool selected, VoidCallback? onTap}) {
     return ChoiceChip(
       label: Text('$minutes 分钟'),
       selected: selected,
       onSelected: (value) {
-        if (value) {
-          setState(() => _sleepTimerMinutes = minutes);
+        if (value && onTap != null) {
+          onTap();
         }
       },
     );
@@ -353,9 +388,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               await ttsService.setRate(rate);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ 语速已保存')),
-              );
             },
             child: const Text('确定'),
           ),
@@ -365,12 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showThemeChangeSnackbar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isDarkMode ? '🌙 已切换到夜间模式' : '☀️ 已切换到日间模式'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    // 移除弹窗提示
   }
 
   void _showAboutDialog() {
