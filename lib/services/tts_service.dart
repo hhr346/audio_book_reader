@@ -206,11 +206,28 @@ class TtsService {
   }
 
   /// 设置语速 (0.0 - 1.0)
+  /// 如果正在播放，会停止并用新语速重新朗读
   Future<void> setRate(double rate) async {
     try {
+      final wasSpeaking = _isSpeaking;
+      final currentText = _currentText;
+      
+      // 如果正在播放，先停止
+      if (wasSpeaking && currentText != null) {
+        print('🔄 语速调节中，重新朗读...');
+        await _flutterTts.stop();
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      
       _speechRate = rate;
       await _flutterTts.setSpeechRate(rate);
       print('⚡ 语速设置为：${(rate * 100).round()}%');
+      
+      // 如果之前在播放，用新语速重新朗读
+      if (wasSpeaking && currentText != null) {
+        await _flutterTts.speak(currentText);
+        print('🔊 用新语速重新朗读');
+      }
     } catch (e) {
       print('❌ 设置语速失败：$e');
       rethrow;
