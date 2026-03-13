@@ -208,6 +208,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
             // 跳转到最后一页（从下一章返回上一章时）
             restorePageIndex = pages.length - 1;
             print('📖 跳转到最后一页：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
+          } else {
+            // 恢复上次阅读位置（从 book 模型中读取）
+            restorePageIndex = widget.book.currentPageIndex;
+            // 确保页码不超出当前章节的实际页数
+            if (restorePageIndex >= pages.length) {
+              restorePageIndex = pages.length - 1;
+              print('⚠️ 上次页码超出范围，调整为最后一页');
+            }
+            print('📖 恢复上次阅读位置：第${_currentChapterIndex + 1}章 第${restorePageIndex + 1}页');
           }
           
           // 确保页码不超出范围

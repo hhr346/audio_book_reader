@@ -359,10 +359,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('语速设置'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('语速设置'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Slider(
@@ -371,27 +371,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 max: 1.0,
                 divisions: 10,
                 label: '${(rate * 100).round()}%',
-                onChanged: (value) {
+                onChanged: (value) async {
                   setDialogState(() => rate = value);
+                  // 实时调整语速
+                  await ttsService.setRate(value);
                 },
               ),
-              Text('当前语速：${(rate * 100).round()}%'),
+              Text('当前语速：${(rate * 100).round()}%', 
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('确定'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ttsService.setRate(rate);
-              Navigator.pop(context);
-            },
-            child: const Text('确定'),
-          ),
-        ],
       ),
     );
   }
