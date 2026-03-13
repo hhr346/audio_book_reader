@@ -42,7 +42,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
   
   // TTS 相关
   bool _isTtsPlaying = false;
-  int _currentTtsPageIndex = 0;
   
   // 屏幕尺寸相关
   double _lineHeight = 1.6;
@@ -367,9 +366,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
           await ttsService.speak(textToSpeak);
           setState(() {
             _isTtsPlaying = true;
-            _currentTtsPageIndex = _currentPageIndex;
           });
-          print('✅ TTS 播放状态已更新');
+          print('✅ TTS 播放状态已更新，当前页：${_currentPageIndex + 1}');
         } catch (e) {
           print('❌ TTS 播放失败：$e');
           if (mounted) {
@@ -397,7 +395,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
       
       setState(() {
         _currentPageIndex = nextPageIndex;
-        _currentTtsPageIndex = nextPageIndex; // 更新 TTS 页码
       });
       
       // 更新进度
@@ -436,9 +433,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       
       print('📖 下一页：第${_currentChapterIndex + 1}章 第${nextPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
       
-      // 如果 TTS 正在播放，朗读新页面
+      // 如果 TTS 正在播放，停止当前播放并朗读新页面
       if (_isTtsPlaying) {
-        TtsService().speak(_pages[_currentPageIndex]);
+        final ttsService = TtsService();
+        await ttsService.stop(); // 先停止当前播放
+        await ttsService.speak(_pages[_currentPageIndex]); // 朗读新页面
       }
     } else {
       // 已经是最后一页，进入下一章
@@ -462,8 +461,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       
       print('📖 上一页：第${_currentChapterIndex + 1}章 第${prevPageIndex + 1}页，累计${_cumulativePagesRead + 1}/$_totalPages 页');
       
+      // 如果 TTS 正在播放，停止当前播放并朗读新页面
       if (_isTtsPlaying) {
-        TtsService().speak(_pages[_currentPageIndex]);
+        final ttsService = TtsService();
+        await ttsService.stop(); // 先停止当前播放
+        await ttsService.speak(_pages[_currentPageIndex]); // 朗读新页面
       }
     } else {
       // 已经是第一页，返回上一章的最后一页

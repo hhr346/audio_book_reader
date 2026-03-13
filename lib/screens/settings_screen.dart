@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../services/tts_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,6 +25,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _fontSize;
   late bool _isDarkMode;
   int _sleepTimerMinutes = 30;
+  bool _sleepTimerEnabled = false;
+  Timer? _countdownTimer;
+  int _remainingSeconds = 0;
   
   @override
   void initState() {
@@ -31,6 +35,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fontSize = widget.currentFontSize;
     _isDarkMode = widget.currentIsDarkMode;
     _loadSettings();
+    _startCountdownUpdate();
+  }
+  
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+  
+  /// 每秒更新倒计时显示
+  void _startCountdownUpdate() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _sleepTimerEnabled) {
+        final remaining = TtsService().getSleepTimerRemaining();
+        if (remaining != null && remaining > 0) {
+          setState(() => _remainingSeconds = remaining);
+        } else if (remaining == 0 || remaining == null) {
+          setState(() {
+            _sleepTimerEnabled = false;
+            _remainingSeconds = 0;
+          });
+        }
+      }
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -94,12 +123,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.timer),
+                SwitchListTile(
+                  secondary: const Icon(Icons.timer),
                   title: const Text('定时关闭'),
-                  subtitle: Text('$_sleepTimerMinutes 分钟后停止播放'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showSleepTimerDialog(),
+                  subtitle: _sleepTimerEnabled
+                      ? Text('⏰ 剩余：${_formatTime(_remainingSeconds)}')
+                      : Text('$_sleepTimerMinutes 分钟后停止播放'),
+                  value: _sleepTimerEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _sleepTimerEnabled = value;
+                    });
+                    if (value) {
+                      // 开启定时关闭
+                      TtsService().setSleepTimer(_sleepTimerMinutes);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('✅ 定时关闭已开启：$_sleepTimerMinutes 分钟')),
+                      );
+                    } else {
+                      // 关闭定时关闭
+                      TtsService().cancelSleepTimer();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('❌ 定时关闭已取消')),
+                      );
+                    }
+                  },
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -146,6 +194,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  /// 格式化时间为 MM:SS
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   void _showFontSizeDialog() {
@@ -210,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('定时关闭'),
+        title: const Text('定时关闭时间'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -235,10 +290,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              TtsService().setSleepTimer(_sleepTimerMinutes);
+              // 只设置时间，不立即启动
+              setState(() {
+                _sleepTimerMinutes = _sleepTimerMinutes;
+              });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('✅ 定时关闭已设置为 $_sleepTimerMinutes 分钟')),
+                SnackBar(content: Text('⏰ 定时时间已设置为 $_sleepTimerMinutes 分钟，请在设置界面开启')),
               );
             },
             child: const Text('确定'),

@@ -23,6 +23,7 @@ class TtsService {
   // 后台播放支持
   Timer? _sleepTimer;
   bool _sleepTimerActive = false;
+  DateTime? _sleepTimerEndTime;
   Function(bool)? onSleepTimerComplete;
   
   // 当前正在朗读的文本
@@ -279,11 +280,13 @@ class TtsService {
   void setSleepTimer(int minutes) {
     _sleepTimer?.cancel();
     _sleepTimerActive = true;
+    _sleepTimerEndTime = DateTime.now().add(Duration(minutes: minutes));
     
-    print('⏰ 定时关闭已设置：$minutes 分钟');
+    print('⏰ 定时关闭已设置：$minutes 分钟，结束时间：$_sleepTimerEndTime');
     
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       _sleepTimerActive = false;
+      _sleepTimerEndTime = null;
       stop();
       onSleepTimerComplete?.call(true);
       print('⏰ 定时关闭已触发，停止播放');
@@ -294,14 +297,15 @@ class TtsService {
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimerActive = false;
+    _sleepTimerEndTime = null;
     print('❌ 定时关闭已取消');
   }
   
   /// 获取定时关闭剩余时间（秒）
   int? getSleepTimerRemaining() {
-    if (!_sleepTimerActive || _sleepTimer == null) return null;
-    // 注意：Timer 没有直接获取剩余时间的方法，这里简化处理
-    return 0;
+    if (!_sleepTimerActive || _sleepTimerEndTime == null) return null;
+    final remaining = _sleepTimerEndTime!.difference(DateTime.now());
+    return remaining.inSeconds.clamp(0, remaining.inSeconds);
   }
   
   /// 是否在定时关闭状态
